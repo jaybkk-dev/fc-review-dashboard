@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FC Reviews Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-card-hover: #1c2a4a;
+  --text: #e0e0e0;
+  --text-muted: #8899aa;
+  --text-bright: #ffffff;
+  --accent: #45818E;
+  --accent-light: #76A5AF;
+  --border: #2a3a5e;
+  --red: #e06666;
+  --green: #2c7a3a;
+  --gold: #d4a843;
+  --star-1: #e06666;
+  --star-2: #e07020;
+  --star-3: #d4a843;
+  --star-4: #76A5AF;
+  --star-5: #2c7a3a;
+  --venue-1: #45818E;
+  --venue-2: #d4a843;
+  --venue-3: #76A5AF;
+  --venue-4: #e07020;
+  --venue-5: #6a5acd;
+  --venue-6: #20b2aa;
+  --cat-food: #45818E;
+  --cat-service: #d4a843;
+  --cat-atmosphere: #76A5AF;
+  --cat-pricing: #e06666;
+  --cat-drinks: #6a5acd;
+  --cat-occasion: #20b2aa;
+  --cat-location: #cd853f;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  flex-direction: column; gap: 16px;
+}
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 20px 30px; }
+
+/* FILTERS */
+.filter-bar {
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+
+.filter-bar label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.filter-bar input[type="date"] {
+  background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 4px; padding: 6px 10px; font-family: inherit; font-size: 13px;
+}
+.filter-bar input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+
+.venue-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+.venue-btn {
+  padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  transition: all 0.2s;
+}
+.venue-btn.active { background: var(--accent); color: var(--text-bright); border-color: var(--accent); }
+.venue-btn:hover { border-color: var(--accent-light); }
+
+/* KPI CARDS */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.kpi-card .kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.kpi-card .kpi-value { font-size: 32px; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+.kpi-card .kpi-value.red { color: var(--red); }
+
+/* CHART ROW */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+}
+
+.chart-card h3 {
+  font-size: 13px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 500;
+}
+
+.chart-card .chart-wrap { position: relative; height: 280px; }
+
+/* FULL WIDTH CHART */
+.chart-full {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.chart-full h3 {
+  font-size: 13px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 500;
+}
+
+.chart-full .chart-wrap { position: relative; height: 300px; }
+
+/* CAROUSEL */
+.carousel-section {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.carousel-section h3 {
+  font-size: 13px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 500;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.5s ease;
+  gap: 16px;
+}
+
+.carousel-card {
+  min-width: 300px; max-width: 300px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.carousel-card .cc-venue {
+  font-size: 10px; color: var(--accent-light); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.carousel-card .cc-stars { color: var(--gold); font-size: 14px; margin-bottom: 6px; }
+.carousel-card .cc-name { font-size: 13px; font-weight: 600; color: var(--text-bright); margin-bottom: 8px; }
+.carousel-card .cc-text { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.carousel-nav {
+  display: flex; justify-content: center; gap: 8px; margin-top: 12px;
+}
+.carousel-nav button {
+  background: var(--border); border: none; color: var(--text);
+  width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  font-size: 14px; display: flex; align-items: center; justify-content: center;
+}
+.carousel-nav button:hover { background: var(--accent); }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .chart-row { grid-template-columns: 1fr; }
+  .filter-bar { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 600px) {
+  .kpi-row { grid-template-columns: 1fr; }
+  .container { padding: 12px; }
+  .carousel-card { min-width: 260px; max-width: 260px; }
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div style="color: var(--text-muted); font-size: 13px;">Loading review data...</div>
+</div>
+
+<div class="container">
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <div>
+      <label>From</label><br>
+      <input type="date" id="dateFrom">
+    </div>
+    <div>
+      <label>To</label><br>
+      <input type="date" id="dateTo">
+    </div>
+    <div style="flex:1">
+      <label>Venues</label><br>
+      <div class="venue-toggles" id="venueToggles"></div>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Reviews</div>
+      <div class="kpi-value" id="kpiTotal">-</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Average Rating</div>
+      <div class="kpi-value" id="kpiAvg">-</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">5-Star Rate</div>
+      <div class="kpi-value" id="kpi5Star">-</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Flagged Reviews</div>
+      <div class="kpi-value" id="kpiFlagged">-</div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="chart-row">
+    <div class="chart-card">
+      <h3>Star Distribution</h3>
+      <div class="chart-wrap"><canvas id="chartStars"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Category Breakdown</h3>
+      <div class="chart-wrap"><canvas id="chartCategories"></canvas></div>
+    </div>
+  </div>
+
+  <!-- REVIEWS OVER TIME -->
+  <div class="chart-full">
+    <h3>Reviews Over Time</h3>
+    <div class="chart-wrap"><canvas id="chartTime"></canvas></div>
+  </div>
+
+  <!-- CAROUSEL -->
+  <div class="carousel-section">
+    <h3>Recent Reviews</h3>
+    <div style="overflow:hidden">
+      <div class="carousel-track" id="carouselTrack"></div>
+    </div>
+    <div class="carousel-nav">
+      <button id="carouselPrev">&#8249;</button>
+      <button id="carouselNext">&#8250;</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// CONFIG
+const API_KEY = 'AIzaSyDqdoKrfUor7TS0XKM5l1SB_kYrVSFgt40';
+const SHEET_ID = '1WlySBJiDS_WrLz6PKa-tXSEqfMWdMUk4IVBeNPxrpZ8';
+
+const VENUES = [
+  { sheet: 'OSKAR PNH', label: 'OSKAR PNH', color: 'var(--venue-1)' },
+  { sheet: 'OSKAR BKK', label: 'OSKAR BKK', color: 'var(--venue-2)' },
+  { sheet: "LILY FU'S", label: "Lily Fu's", color: 'var(--venue-3)' },
+  { sheet: 'THE PARLOUR', label: 'The Parlour', color: 'var(--venue-4)' },
+  { sheet: 'GIGI RISTORANTE', label: 'Gigi 45', color: 'var(--venue-5)' },
+  { sheet: 'GIGI ASOKE', label: 'Gigi Asoke', color: 'var(--venue-6)' },
+];
+
+const VENUE_COLORS = ['#45818E', '#d4a843', '#76A5AF', '#e07020', '#6a5acd', '#20b2aa'];
+const STAR_COLORS = ['#e06666', '#e07020', '#d4a843', '#76A5AF', '#2c7a3a'];
+const CAT_COLORS = { Food: '#45818E', Service: '#d4a843', Atmosphere: '#76A5AF', Pricing: '#e06666', Drinks: '#6a5acd', Occasion: '#20b2aa', Location: '#cd853f' };
+
+// COL INDICES (0-based from venue sheet A-O)
+const COL = { DATE: 2, LINK: 3, TEXT: 4, FIRST_NAME: 6, STARS: 7, CATEGORIES: 8, FLAGGED: 11 };
+
+let allReviews = []; // { venue, date, link, text, firstName, stars, categories, flagged }
+let activeVenues = new Set(VENUES.map(v => v.sheet));
+let chartStars, chartCats, chartTime;
+let carouselIdx = 0;
+let carouselTimer;
+
+// ---- DATA FETCH ----
+async function fetchSheet(tabName) {
+  const encoded = encodeURIComponent(tabName);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encoded}?key=${API_KEY}`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    return data.values || [];
+  } catch (e) {
+    console.error(`Error fetching ${tabName}:`, e);
+    return [];
+  }
+}
+
+async function loadAllData() {
+  const promises = VENUES.map(v => fetchSheet(v.sheet));
+  const results = await Promise.all(promises);
+
+  allReviews = [];
+  results.forEach((rows, vi) => {
+    if (rows.length < 2) return;
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const dateStr = r[COL.DATE] || '';
+      const stars = parseInt(r[COL.STARS], 10);
+      if (!dateStr || isNaN(stars)) continue;
+
+      // Parse dd/MM/yyyy
+      let date;
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      } else {
+        date = new Date(dateStr);
+      }
+      if (isNaN(date.getTime())) continue;
+
+      allReviews.push({
+        venue: VENUES[vi].sheet,
+        venueLabel: VENUES[vi].label,
+        date: date,
+        link: r[COL.LINK] || '',
+        text: r[COL.TEXT] || '',
+        firstName: r[COL.FIRST_NAME] || '',
+        stars: stars,
+        categories: r[COL.CATEGORIES] || '',
+        flagged: r[COL.FLAGGED] || '',
+      });
+    }
+  });
+
+  allReviews.sort((a, b) => b.date - a.date);
+}
+
+// ---- FILTERS ----
+function getFilteredReviews() {
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to + 'T23:59:59') : null;
+
+  return allReviews.filter(r => {
+    if (!activeVenues.has(r.venue)) return false;
+    if (fromDate && r.date < fromDate) return false;
+    if (toDate && r.date > toDate) return false;
+    return true;
+  });
+}
+
+function initFilters() {
+  // Default date range: 1st of previous month to today
+  const now = new Date();
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  document.getElementById('dateFrom').value = prevMonth.toISOString().split('T')[0];
+  document.getElementById('dateTo').value = now.toISOString().split('T')[0];
+
+  // Venue toggles
+  const container = document.getElementById('venueToggles');
+  const allBtn = document.createElement('button');
+  allBtn.className = 'venue-btn active';
+  allBtn.textContent = 'All';
+  allBtn.onclick = () => {
+    activeVenues = new Set(VENUES.map(v => v.sheet));
+    document.querySelectorAll('.venue-btn').forEach(b => b.classList.add('active'));
+    update();
+  };
+  container.appendChild(allBtn);
+
+  VENUES.forEach(v => {
+    const btn = document.createElement('button');
+    btn.className = 'venue-btn active';
+    btn.textContent = v.label;
+    btn.dataset.sheet = v.sheet;
+    btn.onclick = () => {
+      if (activeVenues.has(v.sheet)) {
+        activeVenues.delete(v.sheet);
+        btn.classList.remove('active');
+      } else {
+        activeVenues.add(v.sheet);
+        btn.classList.add('active');
+      }
+      // Update All button
+      allBtn.classList.toggle('active', activeVenues.size === VENUES.length);
+      update();
+    };
+    container.appendChild(btn);
+  });
+
+  document.getElementById('dateFrom').addEventListener('change', update);
+  document.getElementById('dateTo').addEventListener('change', update);
+}
+
+// ---- KPI ----
+function updateKPIs(reviews) {
+  document.getElementById('kpiTotal').textContent = reviews.length;
+
+  if (reviews.length === 0) {
+    document.getElementById('kpiAvg').textContent = '-';
+    document.getElementById('kpi5Star').textContent = '-';
+    document.getElementById('kpiFlagged').textContent = '0';
+    return;
+  }
+
+  const avg = reviews.reduce((s, r) => s + r.stars, 0) / reviews.length;
+  document.getElementById('kpiAvg').textContent = avg.toFixed(1);
+
+  const fiveStars = reviews.filter(r => r.stars === 5).length;
+  document.getElementById('kpi5Star').textContent = (fiveStars / reviews.length * 100).toFixed(0) + '%';
+
+  const flagged = reviews.filter(r => r.flagged).length;
+  const el = document.getElementById('kpiFlagged');
+  el.textContent = flagged;
+  el.className = 'kpi-value' + (flagged > 0 ? ' red' : '');
+}
+
+// ---- CHARTS ----
+function updateStarChart(reviews) {
+  const counts = [0, 0, 0, 0, 0];
+  reviews.forEach(r => { if (r.stars >= 1 && r.stars <= 5) counts[r.stars - 1]++; });
+
+  if (chartStars) chartStars.destroy();
+  chartStars = new Chart(document.getElementById('chartStars'), {
+    type: 'doughnut',
+    data: {
+      labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
+      datasets: [{ data: counts, backgroundColor: STAR_COLORS, borderWidth: 0 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8899aa', font: { size: 11, family: "'Inter'" }, padding: 12, boxWidth: 10 } },
+        datalabels: {
+          color: '#fff', font: { size: 12, weight: '600', family: "'Inter'" },
+          formatter: (v, ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const pct = total ? (v / total * 100).toFixed(0) : 0;
+            return pct >= 5 ? `${pct}%` : '';
+          },
+        },
+      },
+    },
+    plugins: [ChartDataLabels],
+  });
+}
+
+function updateCategoryChart(reviews) {
+  const cats = {};
+  reviews.forEach(r => {
+    if (!r.categories) return;
+    r.categories.split(',').forEach(c => {
+      const name = c.trim();
+      if (name && name.toLowerCase() !== 'none') {
+        cats[name] = (cats[name] || 0) + 1;
+      }
+    });
+  });
+
+  const labels = Object.keys(cats);
+  const data = labels.map(l => cats[l]);
+  const colors = labels.map(l => CAT_COLORS[l] || '#708090');
+
+  if (chartCats) chartCats.destroy();
+  chartCats = new Chart(document.getElementById('chartCategories'), {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8899aa', font: { size: 11, family: "'Inter'" }, padding: 12, boxWidth: 10 } },
+        datalabels: {
+          color: '#fff', font: { size: 12, weight: '600', family: "'Inter'" },
+          formatter: (v, ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const pct = total ? (v / total * 100).toFixed(0) : 0;
+            return pct >= 5 ? `${v}` : '';
+          },
+        },
+      },
+    },
+    plugins: [ChartDataLabels],
+  });
+}
+
+function updateTimeChart(reviews) {
+  if (reviews.length === 0) {
+    if (chartTime) chartTime.destroy();
+    chartTime = null;
+    return;
+  }
+
+  // Determine weekly vs monthly
+  const dates = reviews.map(r => r.date);
+  const minDate = new Date(Math.min(...dates));
+  const maxDate = new Date(Math.max(...dates));
+  const diffMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + maxDate.getMonth() - minDate.getMonth();
+  const useWeekly = diffMonths <= 3;
+
+  // Build period keys
+  function periodKey(d) {
+    if (useWeekly) {
+      const start = new Date(d);
+      start.setDate(start.getDate() - start.getDay());
+      return start.toISOString().split('T')[0];
+    }
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  // Collect all periods
+  const periodSet = new Set();
+  reviews.forEach(r => periodSet.add(periodKey(r.date)));
+  const periods = [...periodSet].sort();
+
+  // Count per venue per period
+  const venueData = {};
+  VENUES.forEach(v => { venueData[v.sheet] = {}; periods.forEach(p => { venueData[v.sheet][p] = 0; }); });
+  reviews.forEach(r => {
+    const pk = periodKey(r.date);
+    if (venueData[r.venue] && venueData[r.venue][pk] !== undefined) {
+      venueData[r.venue][pk]++;
+    }
+  });
+
+  // Build datasets (only active venues)
+  const datasets = VENUES.filter(v => activeVenues.has(v.sheet)).map((v, i) => ({
+    label: v.label,
+    data: periods.map(p => venueData[v.sheet][p] || 0),
+    backgroundColor: VENUE_COLORS[VENUES.indexOf(v)],
+    borderWidth: 0,
+  }));
+
+  // Format labels
+  const labels = periods.map(p => {
+    if (useWeekly) {
+      const d = new Date(p);
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    const [y, m] = p.split('-');
+    return new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  });
+
+  if (chartTime) chartTime.destroy();
+  chartTime = new Chart(document.getElementById('chartTime'), {
+    type: 'bar',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: '#8899aa', font: { size: 11 } } },
+        y: { stacked: true, grid: { color: '#2a3a5e' }, ticks: { color: '#8899aa', font: { size: 11 } } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8899aa', font: { size: 11, family: "'Inter'" }, padding: 12, boxWidth: 10 } },
+        datalabels: { display: false },
+      },
+    },
+    plugins: [ChartDataLabels],
+  });
+}
+
+// ---- CAROUSEL ----
+function buildCarousel() {
+  // Last 20 reviews across ALL venues (ignoring filters)
+  const recent = allReviews.slice(0, 20);
+  const track = document.getElementById('carouselTrack');
+  track.innerHTML = '';
+
+  recent.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'carousel-card';
+
+    const starStr = '\u2605'.repeat(r.stars) + '\u2606'.repeat(5 - r.stars);
+    let excerpt = r.text ? r.text.substring(0, 120) : '';
+    if (r.text && r.text.length > 120) excerpt += '\u2026';
+    if (!excerpt) excerpt = 'Stars only, no comment.';
+
+    card.innerHTML = `
+      <div class="cc-venue">${r.venueLabel}</div>
+      <div class="cc-stars">${starStr}</div>
+      <div class="cc-name">${r.firstName || 'Anonymous'}</div>
+      <div class="cc-text">${excerpt}</div>
+    `;
+    track.appendChild(card);
+  });
+
+  carouselIdx = 0;
+  updateCarouselPosition();
+  startCarouselAuto();
+
+  // Nav buttons
+  document.getElementById('carouselPrev').onclick = () => { carouselIdx = Math.max(0, carouselIdx - 1); updateCarouselPosition(); resetCarouselAuto(); };
+  document.getElementById('carouselNext').onclick = () => { carouselIdx = Math.min(recent.length - 1, carouselIdx + 1); updateCarouselPosition(); resetCarouselAuto(); };
+
+  // Pause on hover
+  track.parentElement.addEventListener('mouseenter', () => clearInterval(carouselTimer));
+  track.parentElement.addEventListener('mouseleave', startCarouselAuto);
+}
+
+function updateCarouselPosition() {
+  const track = document.getElementById('carouselTrack');
+  const cardWidth = 316; // 300 + 16 gap
+  track.style.transform = `translateX(-${carouselIdx * cardWidth}px)`;
+}
+
+function startCarouselAuto() {
+  clearInterval(carouselTimer);
+  const total = document.querySelectorAll('.carousel-card').length;
+  if (total === 0) return;
+  carouselTimer = setInterval(() => {
+    carouselIdx = (carouselIdx + 1) % total;
+    updateCarouselPosition();
+  }, 5000);
+}
+
+function resetCarouselAuto() {
+  clearInterval(carouselTimer);
+  startCarouselAuto();
+}
+
+// ---- UPDATE ----
+function update() {
+  const reviews = getFilteredReviews();
+  updateKPIs(reviews);
+  updateStarChart(reviews);
+  updateCategoryChart(reviews);
+  updateTimeChart(reviews);
+}
+
+// ---- INIT ----
+async function init() {
+  initFilters();
+  await loadAllData();
+  document.getElementById('loading').style.display = 'none';
+  update();
+  buildCarousel();
+}
+
+init();
+</script>
+</body>
+</html>
