@@ -365,6 +365,7 @@ async function loadAllData() {
         venueLabel: VENUES[vi].label,
         date: date,
         text: r[COL.TEXT] || '',
+        reviewer: r[COL.REVIEWER] || '',
         firstName: r[COL.FIRST_NAME] || '',
         stars: stars,
         categories: r[COL.CATEGORIES] || '',
@@ -639,7 +640,7 @@ function buildCarousel() {
     card.innerHTML = `
       <div class="cc-venue">${r.venueLabel}</div>
       <div class="cc-stars">${starStr}</div>
-      <div class="cc-name">${r.firstName || 'Anonymous'}</div>
+      <div class="cc-name">${r.reviewer || 'Anonymous'}</div>
       <div class="cc-text">${excerpt}</div>
     `;
     track.appendChild(card);
