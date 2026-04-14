@@ -237,7 +237,8 @@ body {
       <input type="date" id="dateTo">
     </div>
     <div style="flex:1">
-      <label>Venues</label><br>
+      <label>Venues</label>
+      <div style="font-size:11px;color:var(--text-muted);margin:2px 0 6px">Click a venue to select it. Click again to deselect. ALL toggles all venues on/off.</div>
       <div class="venue-toggles" id="venueToggles"></div>
     </div>
   </div>
@@ -414,7 +415,12 @@ function initFilters() {
   allBtn.className = 'venue-btn';
   allBtn.textContent = 'All';
   allBtn.onclick = () => {
-    activeVenues = new Set(VENUES.map(v => v.sheet));
+    if (activeVenues.size === VENUES.length) {
+      // All already selected → clear all
+      activeVenues.clear();
+    } else {
+      activeVenues = new Set(VENUES.map(v => v.sheet));
+    }
     updateBtnStates();
     update();
   };
