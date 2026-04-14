@@ -242,6 +242,18 @@ body {
     </div>
   </div>
 
+  <!-- CAROUSEL -->
+  <div class="carousel-section">
+    <h3>Recent Reviews</h3>
+    <div style="overflow:hidden">
+      <div class="carousel-track" id="carouselTrack"></div>
+    </div>
+    <div class="carousel-nav">
+      <button id="carouselPrev">&#8249;</button>
+      <button id="carouselNext">&#8250;</button>
+    </div>
+  </div>
+
   <!-- KPI CARDS -->
   <div class="kpi-row">
     <div class="kpi-card">
@@ -280,18 +292,6 @@ body {
     <div class="chart-wrap"><canvas id="chartTime"></canvas></div>
   </div>
 
-  <!-- CAROUSEL -->
-  <div class="carousel-section">
-    <h3>Recent Reviews</h3>
-    <div style="overflow:hidden">
-      <div class="carousel-track" id="carouselTrack"></div>
-    </div>
-    <div class="carousel-nav">
-      <button id="carouselPrev">&#8249;</button>
-      <button id="carouselNext">&#8250;</button>
-    </div>
-  </div>
-
 </div>
 
 <script>
@@ -316,7 +316,7 @@ const CAT_COLORS = { Food: '#45818E', Service: '#d4a843', Atmosphere: '#76A5AF',
 const COL = { DATE: 2, TEXT: 3, REVIEWER: 4, FIRST_NAME: 5, STARS: 6, CATEGORIES: 7 };
 
 let allReviews = []; // { venue, date, text, firstName, stars, categories }
-let activeVenues = new Set(VENUES.map(v => v.sheet));
+let activeVenues = new Set(); // empty on load — nothing shown until user picks
 let chartStars, chartCats, chartTime;
 let carouselIdx = 0;
 let carouselTimer;
@@ -396,33 +396,45 @@ function initFilters() {
   document.getElementById('dateFrom').value = prevMonth.toISOString().split('T')[0];
   document.getElementById('dateTo').value = now.toISOString().split('T')[0];
 
-  // Venue toggles
+  // Venue toggles — click a venue to show only that venue. Click again to deselect. ALL shows all.
   const container = document.getElementById('venueToggles');
+
+  function updateBtnStates() {
+    const allActive = activeVenues.size === VENUES.length;
+    document.querySelectorAll('.venue-btn').forEach(b => {
+      if (b.dataset.sheet) {
+        b.classList.toggle('active', activeVenues.has(b.dataset.sheet));
+      } else {
+        b.classList.toggle('active', allActive);
+      }
+    });
+  }
+
   const allBtn = document.createElement('button');
-  allBtn.className = 'venue-btn active';
+  allBtn.className = 'venue-btn';
   allBtn.textContent = 'All';
   allBtn.onclick = () => {
     activeVenues = new Set(VENUES.map(v => v.sheet));
-    document.querySelectorAll('.venue-btn').forEach(b => b.classList.add('active'));
+    updateBtnStates();
     update();
   };
   container.appendChild(allBtn);
 
   VENUES.forEach(v => {
     const btn = document.createElement('button');
-    btn.className = 'venue-btn active';
+    btn.className = 'venue-btn';
     btn.textContent = v.label;
     btn.dataset.sheet = v.sheet;
     btn.onclick = () => {
-      if (activeVenues.has(v.sheet)) {
-        activeVenues.delete(v.sheet);
-        btn.classList.remove('active');
+      if (activeVenues.size === 1 && activeVenues.has(v.sheet)) {
+        // Click the active venue again → deselect (back to none)
+        activeVenues.clear();
       } else {
+        // Click a venue → show only that venue
+        activeVenues.clear();
         activeVenues.add(v.sheet);
-        btn.classList.add('active');
       }
-      // Update All button
-      allBtn.classList.toggle('active', activeVenues.size === VENUES.length);
+      updateBtnStates();
       update();
     };
     container.appendChild(btn);
