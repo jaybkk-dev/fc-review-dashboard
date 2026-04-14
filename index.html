@@ -257,8 +257,8 @@ body {
       <div class="kpi-value" id="kpi5Star">-</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Flagged Reviews</div>
-      <div class="kpi-value" id="kpiFlagged">-</div>
+      <div class="kpi-label">Negative (1-2 Stars)</div>
+      <div class="kpi-value" id="kpiNegative">-</div>
     </div>
   </div>
 
@@ -313,9 +313,9 @@ const STAR_COLORS = ['#e06666', '#e07020', '#d4a843', '#76A5AF', '#2c7a3a'];
 const CAT_COLORS = { Food: '#45818E', Service: '#d4a843', Atmosphere: '#76A5AF', Pricing: '#e06666', Drinks: '#6a5acd', Occasion: '#20b2aa', Location: '#cd853f' };
 
 // COL INDICES (0-based from venue sheet A-O)
-const COL = { DATE: 2, LINK: 3, TEXT: 4, FIRST_NAME: 6, STARS: 7, CATEGORIES: 8, FLAGGED: 11 };
+const COL = { DATE: 2, TEXT: 3, REVIEWER: 4, FIRST_NAME: 5, STARS: 6, CATEGORIES: 7 };
 
-let allReviews = []; // { venue, date, link, text, firstName, stars, categories, flagged }
+let allReviews = []; // { venue, date, text, firstName, stars, categories }
 let activeVenues = new Set(VENUES.map(v => v.sheet));
 let chartStars, chartCats, chartTime;
 let carouselIdx = 0;
@@ -363,12 +363,10 @@ async function loadAllData() {
         venue: VENUES[vi].sheet,
         venueLabel: VENUES[vi].label,
         date: date,
-        link: r[COL.LINK] || '',
         text: r[COL.TEXT] || '',
         firstName: r[COL.FIRST_NAME] || '',
         stars: stars,
         categories: r[COL.CATEGORIES] || '',
-        flagged: r[COL.FLAGGED] || '',
       });
     }
   });
@@ -451,10 +449,10 @@ function updateKPIs(reviews) {
   const fiveStars = reviews.filter(r => r.stars === 5).length;
   document.getElementById('kpi5Star').textContent = (fiveStars / reviews.length * 100).toFixed(0) + '%';
 
-  const flagged = reviews.filter(r => r.flagged).length;
-  const el = document.getElementById('kpiFlagged');
-  el.textContent = flagged;
-  el.className = 'kpi-value' + (flagged > 0 ? ' red' : '');
+  const negative = reviews.filter(r => r.stars <= 2).length;
+  const el = document.getElementById('kpiNegative');
+  el.textContent = negative;
+  el.className = 'kpi-value' + (negative > 0 ? ' red' : '');
 }
 
 // ---- CHARTS ----
