@@ -289,8 +289,8 @@ body {
 
   <!-- REVIEWS OVER TIME -->
   <div class="chart-full">
-    <h3>Reviews Over Time</h3>
-    <div class="chart-wrap"><canvas id="chartTime"></canvas></div>
+    <h3>Reviews Over Time <span id="timeChartNotice" style="font-weight:400;color:var(--text-muted);font-size:11px">(Not enough data available)</span></h3>
+    <div class="chart-wrap" id="timeChartWrap" style="display:none"><canvas id="chartTime"></canvas></div>
   </div>
 
 </div>
@@ -546,63 +546,67 @@ function updateCategoryChart(reviews) {
 }
 
 function updateTimeChart(reviews) {
+  const notice = document.getElementById('timeChartNotice');
+  const wrap = document.getElementById('timeChartWrap');
+
+  if (chartTime) { chartTime.destroy(); chartTime = null; }
+
   if (reviews.length === 0) {
-    if (chartTime) chartTime.destroy();
-    chartTime = null;
+    notice.style.display = '';
+    wrap.style.display = 'none';
     return;
   }
 
-  // Determine weekly vs monthly
-  const dates = reviews.map(r => r.date);
-  const minDate = new Date(Math.min(...dates));
-  const maxDate = new Date(Math.max(...dates));
-  const diffMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + maxDate.getMonth() - minDate.getMonth();
-  const useWeekly = diffMonths <= 3;
-
-  // Build period keys
-  function periodKey(d) {
-    if (useWeekly) {
-      const start = new Date(d);
-      start.setDate(start.getDate() - start.getDay());
-      return start.toISOString().split('T')[0];
-    }
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  // Get ISO week number
+  function getWeek(d) {
+    const date = new Date(d);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    return { year: date.getFullYear(), week: 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7) };
   }
 
-  // Collect all periods
-  const periodSet = new Set();
-  reviews.forEach(r => periodSet.add(periodKey(r.date)));
-  const periods = [...periodSet].sort();
-
-  // Count per venue per period
-  const venueData = {};
-  VENUES.forEach(v => { venueData[v.sheet] = {}; periods.forEach(p => { venueData[v.sheet][p] = 0; }); });
+  // Build weekly keys
+  const weekSet = new Set();
   reviews.forEach(r => {
-    const pk = periodKey(r.date);
-    if (venueData[r.venue] && venueData[r.venue][pk] !== undefined) {
-      venueData[r.venue][pk]++;
+    const w = getWeek(r.date);
+    weekSet.add(w.year + '-W' + String(w.week).padStart(2, '0'));
+  });
+  const weeks = [...weekSet].sort();
+
+  // Need at least 4 weeks
+  if (weeks.length < 4) {
+    notice.style.display = '';
+    wrap.style.display = 'none';
+    return;
+  }
+
+  // Hide notice, show chart
+  notice.style.display = 'none';
+  wrap.style.display = '';
+
+  // Count per star rating per week
+  const starData = { 5: {}, 4: {}, 3: {}, 2: {}, 1: {} };
+  weeks.forEach(w => { for (let s = 1; s <= 5; s++) starData[s][w] = 0; });
+  reviews.forEach(r => {
+    const w = getWeek(r.date);
+    const key = w.year + '-W' + String(w.week).padStart(2, '0');
+    if (starData[r.stars] && starData[r.stars][key] !== undefined) {
+      starData[r.stars][key]++;
     }
   });
 
-  // Build datasets (only active venues)
-  const datasets = VENUES.filter(v => activeVenues.has(v.sheet)).map((v, i) => ({
-    label: v.label,
-    data: periods.map(p => venueData[v.sheet][p] || 0),
-    backgroundColor: VENUE_COLORS[VENUES.indexOf(v)],
+  // Labels: "Week 15" etc
+  const labels = weeks.map(w => 'Week ' + parseInt(w.split('-W')[1], 10));
+
+  // Datasets: stacked by star rating (5 on top, 1 on bottom)
+  const datasets = [5, 4, 3, 2, 1].map(s => ({
+    label: s + ' Star' + (s > 1 ? 's' : ''),
+    data: weeks.map(w => starData[s][w] || 0),
+    backgroundColor: STAR_COLORS[s - 1],
     borderWidth: 0,
   }));
 
-  // Format labels
-  const labels = periods.map(p => {
-    if (useWeekly) {
-      const d = new Date(p);
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    }
-    const [y, m] = p.split('-');
-    return new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-  });
-
-  if (chartTime) chartTime.destroy();
   chartTime = new Chart(document.getElementById('chartTime'), {
     type: 'bar',
     data: { labels: labels, datasets: datasets },
@@ -610,7 +614,7 @@ function updateTimeChart(reviews) {
       responsive: true, maintainAspectRatio: false,
       scales: {
         x: { stacked: true, grid: { display: false }, ticks: { color: '#8899aa', font: { size: 11 } } },
-        y: { stacked: true, grid: { color: '#2a3a5e' }, ticks: { color: '#8899aa', font: { size: 11 } } },
+        y: { stacked: true, grid: { color: '#2a3a5e' }, ticks: { color: '#8899aa', font: { size: 11 }, stepSize: 1 } },
       },
       plugins: {
         legend: { position: 'bottom', labels: { color: '#8899aa', font: { size: 11, family: "'Inter'" }, padding: 12, boxWidth: 10 } },
