@@ -347,8 +347,10 @@ async function loadAllData() {
     for (let i = 1; i < rows.length; i++) {
       const r = rows[i];
       const dateStr = r[COL.DATE] || '';
-      const stars = parseInt(r[COL.STARS], 10);
-      if (!dateStr || isNaN(stars)) continue;
+      const starCell = String(r[COL.STARS] || '');
+      const emojiCount = (starCell.match(/⭐/g) || []).length;
+      const stars = emojiCount > 0 ? emojiCount : parseInt(starCell, 10);
+      if (!dateStr || isNaN(stars) || stars < 1 || stars > 5) continue;
 
       // Parse dd/MM/yyyy
       let date;
