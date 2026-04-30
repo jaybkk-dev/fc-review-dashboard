@@ -304,7 +304,6 @@ const VENUES = [
   { sheet: 'OSKAR PNH', label: 'OSKAR PNH', color: 'var(--venue-1)' },
   { sheet: 'OSKAR BKK', label: 'OSKAR BKK', color: 'var(--venue-2)' },
   { sheet: "LILY FU'S", label: "Lily Fu's", color: 'var(--venue-3)' },
-  { sheet: 'THE PARLOUR', label: 'The Parlour', color: 'var(--venue-4)' },
   { sheet: 'GIGI RISTORANTE', label: 'Gigi 45', color: 'var(--venue-5)' },
   { sheet: 'GIGI ASOKE', label: 'Gigi Asoke', color: 'var(--venue-6)' },
 ];
@@ -317,10 +316,12 @@ const CAT_COLORS = { Food: '#45818E', Service: '#d4a843', Atmosphere: '#76A5AF',
 const COL = { DATE: 2, TEXT: 3, REVIEWER: 4, FIRST_NAME: 5, STARS: 6, CATEGORIES: 7 };
 
 let allReviews = []; // { venue, date, text, firstName, stars, categories }
-let activeVenues = new Set(); // empty on load — nothing shown until user picks
+let activeVenues = new Set(VENUES.map(v => v.sheet)); // default: all venues selected
 let chartStars, chartCats, chartTime;
-let carouselIdx = 0;
 let carouselTimer;
+const CAROUSEL_CARD_WIDTH = 316; // 300px card + 16px gap
+const CAROUSEL_INTERVAL = 3000;
+const CAROUSEL_TRANSITION = 500;
 
 // ---- DATA FETCH ----
 async function fetchSheet(tabName) {
@@ -394,10 +395,11 @@ function getFilteredReviews() {
 }
 
 function initFilters() {
-  // Default date range: 1st of previous month to today
+  // Default date range: past 30 days
   const now = new Date();
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  document.getElementById('dateFrom').value = prevMonth.toISOString().split('T')[0];
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  document.getElementById('dateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
   document.getElementById('dateTo').value = now.toISOString().split('T')[0];
 
   // Venue toggles — click a venue to show only that venue. Click again to deselect. ALL shows all.
@@ -629,10 +631,20 @@ function updateTimeChart(reviews) {
 
 // ---- CAROUSEL ----
 function buildCarousel() {
-  // Last 20 reviews across ALL venues (ignoring filters)
-  const recent = allReviews.slice(0, 20);
+  // 4-5★ reviews across ALL venues (ignoring filters), deduped, capped at 30 most recent
+  const seen = new Set();
+  const recent = allReviews
+    .filter(r => r.stars >= 4)
+    .filter(r => {
+      const key = r.venue + '|' + (r.reviewer || '') + '|' + (r.text || '').slice(0, 60);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 30);
   const track = document.getElementById('carouselTrack');
   track.innerHTML = '';
+  track.style.transform = 'translateX(0)';
 
   recent.forEach(r => {
     const card = document.createElement('div');
@@ -652,33 +664,43 @@ function buildCarousel() {
     track.appendChild(card);
   });
 
-  carouselIdx = 0;
-  updateCarouselPosition();
   startCarouselAuto();
 
-  // Nav buttons
-  document.getElementById('carouselPrev').onclick = () => { carouselIdx = Math.max(0, carouselIdx - 1); updateCarouselPosition(); resetCarouselAuto(); };
-  document.getElementById('carouselNext').onclick = () => { carouselIdx = Math.min(recent.length - 1, carouselIdx + 1); updateCarouselPosition(); resetCarouselAuto(); };
+  document.getElementById('carouselPrev').onclick = () => { advanceCarousel(-1); resetCarouselAuto(); };
+  document.getElementById('carouselNext').onclick = () => { advanceCarousel(1); resetCarouselAuto(); };
 
   // Pause on hover
   track.parentElement.addEventListener('mouseenter', () => clearInterval(carouselTimer));
   track.parentElement.addEventListener('mouseleave', startCarouselAuto);
 }
 
-function updateCarouselPosition() {
+// Infinite carousel: slide one card, then rotate DOM so the visible window never empties.
+function advanceCarousel(direction) {
   const track = document.getElementById('carouselTrack');
-  const cardWidth = 316; // 300 + 16 gap
-  track.style.transform = `translateX(-${carouselIdx * cardWidth}px)`;
+  if (track.children.length < 2) return;
+
+  if (direction === 1) {
+    track.style.transition = `transform ${CAROUSEL_TRANSITION}ms ease`;
+    track.style.transform = `translateX(-${CAROUSEL_CARD_WIDTH}px)`;
+    setTimeout(() => {
+      track.style.transition = 'none';
+      track.appendChild(track.firstElementChild);
+      track.style.transform = 'translateX(0)';
+    }, CAROUSEL_TRANSITION);
+  } else {
+    track.style.transition = 'none';
+    track.insertBefore(track.lastElementChild, track.firstElementChild);
+    track.style.transform = `translateX(-${CAROUSEL_CARD_WIDTH}px)`;
+    void track.offsetWidth; // force reflow so the next transform animates
+    track.style.transition = `transform ${CAROUSEL_TRANSITION}ms ease`;
+    track.style.transform = 'translateX(0)';
+  }
 }
 
 function startCarouselAuto() {
   clearInterval(carouselTimer);
-  const total = document.querySelectorAll('.carousel-card').length;
-  if (total === 0) return;
-  carouselTimer = setInterval(() => {
-    carouselIdx = (carouselIdx + 1) % total;
-    updateCarouselPosition();
-  }, 5000);
+  if (document.querySelectorAll('.carousel-card').length === 0) return;
+  carouselTimer = setInterval(() => advanceCarousel(1), CAROUSEL_INTERVAL);
 }
 
 function resetCarouselAuto() {
