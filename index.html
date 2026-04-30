@@ -453,6 +453,9 @@ function initFilters() {
 
   document.getElementById('dateFrom').addEventListener('change', update);
   document.getElementById('dateTo').addEventListener('change', update);
+
+  // Reflect the default activeVenues state on the buttons (all selected on load).
+  updateBtnStates();
 }
 
 // ---- KPI ----
